@@ -30,7 +30,7 @@ services:
   airflow:
     image: apache/airflow:2.7.0
     environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor  # Consider changing to CeleryExecutor for scalability
       AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://user:password@postgres-dwh:5432/dwh_db
       AIRFLOW__CORE__FERNET_KEY: 'your_fernet_key'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
@@ -42,7 +42,11 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-    command: bash -c "airflow db upgrade && airflow webserver & airflow scheduler"
+    command: >
+      bash -c "airflow db upgrade && 
+      airflow webserver --daemon & 
+      airflow scheduler --daemon & 
+      wait"
 
   # pgAdmin to monitor both PostgreSQL instances
   pgadmin:
