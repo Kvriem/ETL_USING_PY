@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  
+  # Transactional PostgreSQL Database
+  postgres-transactional:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: transactional_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_transactional_data:/var/lib/postgresql/data
+
+  # Data Warehouse PostgreSQL
+  postgres-dwh:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dwh_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_dwh_data:/var/lib/postgresql/data
+
+  # Airflow (Scheduler, Webserver, and Workers)
+  airflow:
+    image: apache/airflow:2.7.0
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://user:password@postgres-dwh:5432/dwh_db
+      AIRFLOW__CORE__FERNET_KEY: 'your_fernet_key'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    depends_on:
+      - postgres-dwh
+    ports:
+      - "8080:8080"  # Airflow UI
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    command: bash -c "airflow db upgrade && airflow webserver & airflow scheduler"
+
+  # pgAdmin to monitor both PostgreSQL instances
+  pgadmin:
+    image: dpage/pgadmin4:6.21
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres-transactional
+      - postgres-dwh
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_transactional_data:
+  postgres_dwh_data:
+  pgadmin_data:
